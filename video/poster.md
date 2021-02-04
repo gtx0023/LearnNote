@@ -1,9 +1,11 @@
 # poster属性图片铺满video
 
+```css
 video{
 width: 100%;
 object-fit:fill;
 }
+```
 
 ## 标签定义及使用说明
 object-fit 属性指定元素的内容应该如何去适应指定容器的高度与宽度。
