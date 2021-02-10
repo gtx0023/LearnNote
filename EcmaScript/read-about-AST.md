@@ -234,3 +234,83 @@ arr.length = len;
 
 ### 作用域闭包
 
+## 现代的模块机制
+* ES5
+```javascript
+var MyModules = (function Manager() {
+  var modules = {};
+  
+  function define(name, deps, impl) {
+    for (var i=0; i<deps.length; i++) {
+      deps[i] = modules[deps[i]];
+    }
+    modules[name] = impl.apply( impl, deps );
+  }
+  
+  function get(name) {
+    return modules[name];
+  }
+  
+  return {
+    define: define,
+    get: get
+  };
+})();
+
+//下面展示了如何使用它来定义模块：
+MyModules.define( "bar", [], function() {
+  function hello(who) {
+    return "Let me introduce: " + who;
+  }
+  return {
+    hello: hello
+  };
+});
+
+MyModules.define( "foo", ["bar"], function(bar) {
+  var hungry = "hippo";
+  function awesome() {
+    console.log( bar.hello( hungry ).toUpperCase() );
+  }
+  return {
+    awesome: awesome
+  };
+});
+
+var bar = MyModules.get( "bar" );
+var foo = MyModules.get( "foo" );
+
+console.log(
+  bar.hello( "hippo" )
+); // Let me introduce: hippo
+
+foo.awesome(); // LET ME INTRODUCE: HIPPO
+```
+
+这段代码的核心是 **modules[name] = impl.apply(impl, deps)。** 为了模块的定义引入了包装函数（可以传入任何依赖）， 并且将返回值， 也就是模块的 API， 储存在一个根据名字来管理的模块列表中。
+
+* ES6
+bar.js
+```javascript
+function hello(who) {
+return "Let me introduce: " + who;
+}
+export hello;
+```
+foo.js
+```javascript
+// 仅从 "bar" 模块导入 hello()
+import hello from "bar";
+var hungry = "hippo";
+function awesome() {
+console.log(
+hello( hungry ).toUpperCase()
+);
+}
+export awesome;
+```
+
+模块有两个主要特征：
+* （1） 为创建内部作用域而调用了一个包装函数；
+* （2） 包装函数的返回值必须至少包括一个对内部函数的引用， 这样就会创建涵盖整个包装函数内部作用域的闭包。
+
