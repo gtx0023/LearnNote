@@ -76,6 +76,10 @@ onsole.log( err ); // ReferenceError: err not found
 + let let 关键字可以将变量绑定到所在的任意作用域中（通常是 { .. } 内部）。 换句话说， let为其声明的变量隐式地了所在的块作用域。
 
 ### 作用域提升
+* 包括变量和函数在内的所有声明都会在任何代码被执行前首先被处理。
+* 是函数会首先被提升， 然后才是变量。
+* 在同一个作用域中进行重复定义是非常糟糕的， 而且经常会导致各种奇怪的问题
+
 是指声明会被视为存在于其所出现的作用域的整个范围内。但是使用 let 进行的声明不会在块作用域中进行提升。 声明的代码被运行之前， 声明并不“存在”。
 
 ```javascript
@@ -84,5 +88,41 @@ onsole.log( err ); // ReferenceError: err not found
   let bar = 2;
 }
 ```
+
+```javascript
+a = 2;
+var a;
+console.log( a );
+```
+我们的第一个代码片段会以如下形式进行处理：
+```javascript
+var a;
+a = 2;
+console.log( a );
+```
+其中第一部分是编译， 而第二部分是执行。
+
+考虑以下代码：
+```javascript
+foo(); // 1
+var foo;
+function foo() {
+console.log( 1 );
+} f
+oo = function() {
+console.log( 2 );
+};
+```
+会输出 1 而不是 2 ！ 这个代码片段会被引擎理解为如下形式：
+```javascript
+function foo() {
+console.log( 1 );
+} f
+oo(); // 1
+foo = function() {
+console.log( 2 );
+};
+```
+
 ### 垃圾收集
-1
+
