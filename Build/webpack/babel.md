@@ -1,4 +1,4 @@
-## .babelrc 配置导致的问题
+## .babelrc 配置导致的 jsx相关问题
 
 在配置React的时候出现如下报错：
 
