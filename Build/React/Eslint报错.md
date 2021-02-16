@@ -230,4 +230,32 @@ path.join() 方法使用平台特定的分隔符把全部给定的 path 片段�
 
 ![img](https://img2020.cnblogs.com/blog/992473/202005/992473-20200522095736750-2125347972.png)
 
- 
+## [Unable to resolve path to module '' import/no-unresolved](https://www.cnblogs.com/ly0612/p/12600156.html)
+
+配置了 alias ，但是 eslint 报错“不能解析这个导出”。
+
+两种解决办法。
+
+第一种：
+
+```javascript
+yarn add eslint-``import``-resolver-webpack --dev
+```
+
+编辑 .eslintrc
+
+```javascript
+{
+  "settings": {
+    "webpack": {
+      "config": "config/webpack.config.js" // 这是你设置alias的配置文件路径
+    }
+  }
+}
+```
+
+现在就可以了
+
+参考资料：https://github.com/houndci/hound/issues/1419#
+
+
