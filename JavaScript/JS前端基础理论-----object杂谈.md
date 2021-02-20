@@ -261,7 +261,7 @@ Object.getOwnPropertyDescriptor( myObject, "a" );
 
 如你所见， 这个普通的对象属性对应的属性描述符（也被称为“数据描述符”， 因为它只保存一个数据值） 可不仅仅只是一个 2。 它还包含另外三个特性：
 
-1.  writable（可写）、
+1. writable（可写）、
 
    ```javascript
    var myObject = {};
@@ -392,5 +392,148 @@ myImmutableObject.foo; // [1,2,3,4]
 
    这个方法是你可以应用在对象上的级别最高的不可变性， 它会禁止对于对象本身及其任意直接属性的修改（不过就像我们之前说过的， 这个对象引用的其他对象是不受影响的）。你可以“深度冻结” 一个对象， 具体方法为， 首先在这个对象上调用 Object.freeze(..)，然后遍历它引用的所有对象并在这些对象上调用 Object.freeze(..)。 但是一定要小心， 因为这样做有可能会在无意中冻结其他（共享） 对象。  
 
+## Getter和Setter  
 
+在 ES5 中可以使用 getter 和 setter 部分改写默认操作， 但是只能应用在单个属性上， 无法应用在整个对象上。 
+
+- getter 是一个隐藏函数， 会在**获取属性**值时调用。
+- setter 也是一个隐藏函数， 会在**设置属性**值时调用。
+
+```javascript
+// 定义get的两种方式，set 同理
+var myObject = {
+// 给 a 定义一个 getter
+    get a() {
+    	return 2;
+    }
+};
+Object.defineProperty(
+    myObject, // 目标对象
+    "b", // 属性名
+    { // 描述符
+        // 给 b 设置一个 getter
+        get: function(){ return this.a * 2 },
+        // 确保 b 会出现在对象的属性列表中
+        enumerable: true
+    }
+);
+myObject.a; // 2
+myObject.b; // 4
+```
+
+```javascript
+var myObject = {
+// 给 a 定义一个 getter
+    get a() {
+    	return 2;
+    }
+};
+myObject.a = 3;
+myObject.a; // 2
+```
+
+由于我们只定义了 a 的 getter， 所以对 a 的值进行设置时 set 操作会忽略赋值操作， 不会抛出错误。 而且即便有合法的 setter， 由于我们自定义的 getter 只会返回 2， 所以 set 操作是没有意义的。  
+
+
+
+为了让属性更合理， 还应当定义 setter， 和你期望的一样， setter 会覆盖单个属性默认的[[Put]]（也被称为赋值） 操作。 ***通常来说 getter 和 setter 是成对出现的（只定义一个的话通常会产生意料之外的行为）*** ：
+
+```javascript
+var myObject = {
+    // 给 a 定义一个 getter
+    get a() {
+    	return this._a_;
+    },
+    // 给 a 定义一个 setter
+    set a(val) {
+    	this._a_ = val * 2;
+    }
+};
+myObject.a = 2;
+myObject.a; // 4  
+```
+
+
+
+## 遍历  
+
+ES5 中增加了一些数组的辅助迭代器， 包括 
+
+- forEach(..)
+
+  会遍历数组中的所有值并忽略回调函数的返回值。   
+
+- every(..) 
+
+  every(..) 会一直运行直到回调函数返回 false（或者“假” 值）  
+
+- some(..) 
+
+  some(..) 会一直运行直到回调函数返回 true（或者“真” 值）。  
+
+ES6 增加了一种用来遍历数组的 
+
+- for..of
+
+  ```javascript
+  var myArray = [ 1, 2, 3 ];
+  for (var v of myArray) {
+  	console.log( v );
+  }
+  // 1
+  // 2
+  // 3
+  ```
+
+  for..of 循环首先会向被访问对象请求一个迭代器对象， 然后通过调用迭代器对象的next() 方法来遍历所有返回值。
+  数组有内置的 @@iterator， 因此 for..of 可以直接应用在数组上。 我们使用内置的 @@iterator 来手动遍历数组， 看看它是怎么工作的：
+
+  ```javascript
+  var myArray = [ 1, 2, 3 ];
+  var it = myArray[Symbol.iterator]();
+  it.next(); // { value:1, done:false }
+  it.next(); // { value:2, done:false }
+  it.next(); // { value:3, done:false }
+  it.next(); // { done:true }  
+  ```
+
+  当然， 你可以给任何想遍历的对象定义 @@iterator， 举例来说：
+
+  ```javascript
+  var myObject = {
+      a: 2,
+      b: 3
+  };
+  Object.defineProperty( myObject, Symbol.iterator, {
+      enumerable: false,
+      writable: false,
+      configurable: true,
+      value: function() {
+          var o = this;
+          var idx = 0;
+          var ks = Object.keys( o );
+          return {
+              next: function() {
+                  return {
+                      value: o[ks[idx++]],
+                      done: (idx > ks.length)
+                  };
+              }
+          };
+      }
+  } );
+  // 手动遍历 myObject
+  var it = myObject[Symbol.iterator]();
+  it.next(); // { value:2, done:false }
+  it.next(); // { value:3, done:false }
+  it.next(); // { value:undefned, done:true }
+  // 用 for..of 遍历 myObject
+  for (var v of myObject) {
+  	console.log( v );
+  }
+  // 2
+  // 3  
+  ```
+
+  
 
