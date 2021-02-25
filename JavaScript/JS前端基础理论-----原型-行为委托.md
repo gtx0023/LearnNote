@@ -527,14 +527,185 @@ var controller2 = Object.create( AuthController );
 
 ### class
 
-ES6 的 class 语法可以简洁地定义类方法， 这个特性让 class 乍看起来更有吸引力（附录
-A 会介绍为什么要避免使用这个特性） ：
+ES6 的 class 语法可以简洁地定义类方法， 这个特性让 class 乍看起来更有吸引力（附录A 会介绍为什么要避免使用这个特性） ：
 
 ```javascript
 class Foo {
 	methodName() { /* .. */ }
 }  
 ```
+
+现在我们来看看ES6 的 class 机制  
+
+首先回顾一下第 6 章中的 Widget/Button 例子：
+
+```javascript
+class Widget {
+    constructor(width,height) {
+        this.width = width || 50;  
+        this.height = height || 50;
+        this.$elem = null;
+    } 
+    render($where){
+        if (this.$elem) {
+            this.$elem.css( {
+                width: this.width + "px",
+                height: this.height + "px"
+            } ).appendTo( $where );
+        }
+    }
+} 
+
+class Button extends Widget {
+    constructor(width,height,label) {
+        super( width, height );
+        this.label = label || "Default";
+        this.$elem = $( "<button>" ).text( this.label );
+    } 
+    render($where) {
+        super( $where );
+        this.$elem.click( this.onClick.bind( this ) );
+    } 
+    onClick(evt) {
+    	console.log( "Button '" + this.label + "' clicked!" );
+    }
+}
+```
+
+除了语法更好看之外， ES6 还解决了什么问题呢？
+
+1. （基本上， 下面会详细介绍） 不再引用杂乱的 .prototype 了。
+2. Button 声 明 时 直 接“继 承 ” 了 Widget， 不 再 需 要 通 过 Object.create(..) 来 替换 .prototype 对象， 也不需要设置 .__proto__ 或者 Object.setPrototypeOf(..)。
+3. 可以通过 super(..) 来实现相对多态， 这样任何方法都可以引用原型链上层的同名方法。 这可以解决第 4 章提到过的那个问题： 构造函数不属于类， 所以无法互相引用——super() 可以完美解决构造函数的问题。
+4. class 字面语法不能声明属性（只能声明方法）。 看起来这是一种限制， 但是它会排除掉许多不好的情况， 如果没有这种限制的话， 原型链末端的“实例” 可能会意外地获取其他地方的属性（这些属性隐式被所有“实例” 所“共享”）。 所以， class 语法实际上可以帮助你避免犯错。
+5. 可以通过 extends 很自然地扩展对象（子） 类型， 甚至是内置的对象（子） 类型， 比如Array 或 RegExp。 没有 class ..extends 语法时， 想实现这一点是非常困难的， 基本上只有框架的作者才能搞清楚这一点。 但是现在可以轻而易举地做到！
+
+平心而论， class 语法确实解决了典型原型风格代码中许多显而易见的（语法） 问题和缺点。  
+
+#### class陷阱  
+
+首先， 你可能会认为 ES6 的 class 语法是向 JavaScript 中引入了一种新的“类” 机制， 其实不是这样。 class 基本上只是现有 [[Prototype]]（委托！ ） 机制的一种语法糖。
+
+#####  class 不会在声明时静态复制所有行为
+
+也就是说， class 并不会像传统面向类的语言一样在声明时静态复制所有行为。 如果你（有意或无意） 修改或者替换了父“类” 中的一个方法， 那子“类” 和所有实例都会受到影响， 因为它们在定义时并没有进行复制， 只是使用基于 [[Prototype]] 的实时委托：
+
+```javascript
+class C {
+    constructor() {
+        this.num = Math.random();
+    } 
+    rand() {
+    	console.log( "Random: " + this.num );
+    }
+} 
+
+var c1 = new C();
+c1.rand(); // "Random: 0.4324299..."
+
+C.prototype.rand = function() {
+	console.log( "Random: " + Math.round( this.num * 1000 ));
+};
+
+var c2 = new C();
+c2.rand(); // "Random: 867"
+
+c1.rand(); // "Random: 432" ——噢！
+```
+
+如果你已经明白委托的原理所以并不会期望得到“类” 的副本的话， 那这种行为才看起来比较合理。 所以你需要问自己： 为什么要使用本质上不是类的 class 语法呢？  
+
+##### class 语法无法定义类成员属性
+
+class 语法无法定义类成员属性（只能定义方法）， 如果为了跟踪实例之间共享状态必须要
+这么做， 那你只能使用丑陋的 .prototype 语法， 像这样：
+
+```javascript
+class C {
+    constructor() {
+        // 确保修改的是共享状态而不是在实例上创建一个屏蔽属性！
+        C.prototype.count++;
+        // this.count 可以通过委托实现我们想要的功能
+        console.log( "Hello: " + this.count );
+    }  
+}
+
+ // 直接向 prototype 对象上添加一个共享状态
+C.prototype.count = 0;
+
+var c1 = new C();
+// Hello: 1
+
+var c2 = new C();
+// Hello: 2
+
+c1.count === 2; // true
+c1.count === c2.count; // true
+```
+
+这 种 方 法 最 大 的 问 题 是， 它 违 背 了 class 语 法 的 本 意， 在 实 现 中 暴 露（泄 露！ ）了 .prototype。
+
+如果使用 this.count++ 的话， 我们会很惊讶地发现在对象 c1 和 c2 上都创建了 .count 属性， 而不是更新共享状态。 class 没有办法解决这个问题， 并且干脆就不提供相应的语法支持， 所以你根本就不应该这样做。  
+
+##### class 语法仍然面临意外屏蔽  
+
+```javascript
+class C {
+    constructor(id) {
+        // 噢， 郁闷， 我们的 id 属性屏蔽了 id() 方法
+        this.id = id;
+    } 
+    id() {
+    	console.log( "Id: " + id );
+    }
+}
+var c1 = new C( "c1" );
+c1.id(); // TypeError -- c1.id 现在是字符串 "c1"
+```
+
+##### super 并不是动态绑定的
+
+ 你可能认为 super 的绑定方法和 this 类似（参见第 2 章）， 也就是说， 无论目前的方法在原型链中处于什么位置， super 总会绑定到链中的上一层。
+
+然而， 出于性能考虑**（this 绑定已经是很大的开销了）， super 并不是动态绑定的**， 它会在声明时“静态” 绑定。 
+
+  思考下面代码中 super 的行为（D 和 E 上） ：
+
+```javascript
+class P {
+	foo() { console.log( "P.foo" ); }
+}
+
+class C extends P {
+    foo() {
+        super();
+    }
+}
+
+var c1 = new C();
+c1.foo(); // "P.foo"
+
+var D = {
+	foo: function() { console.log( "D.foo" ); }
+};
+
+var E = {
+	foo: C.prototype.foo
+};
+
+// 把 E 委托到 D
+Object.setPrototypeOf( E, D );
+
+E.foo(); // "P.foo"
+```
+
+如果你认为 super 会动态绑定（非常合理！ ）， 那你可能期望 super() 会自动识别出 E 委托了 D， 所以 E.foo() 中的 super() 应该调用 D.foo()。
+
+但事实并不是这样。 出于性能考虑， super 并不像 this 一样是晚绑定（late bound， 或者说动态绑定） 的， 它在 [[HomeObject]].[[Prototype]] 上， [[HomeObject]] 会在创建时静态绑定。
+
+在本例中， super() 会调用 P.foo()， 因为方法的 [[HomeObject]] 仍然是 C， C.[[Prototype]]是 P。  
+
+### 简洁方法声明
 
 在 ES6 中 我 们 可 以 在 任 意 对 象 的 字 面 形 式 中 使 用 简 洁 方 法 声 明（concise method declaration）， 所以对象关联风格的对象可以这样声明（和 class 的语法糖一样） ：
 
