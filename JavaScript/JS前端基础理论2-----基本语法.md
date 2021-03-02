@@ -649,3 +649,830 @@ NaN 不等于 NaN （参⻅第 2 章）。
 如果结果出现⾮字符串，就根据ToNumber 规则将双⽅强制类型转换为数字来进⾏⽐较  
 
 如果⽐较双⽅都是字符串，则按字⺟顺序来进⾏⽐较
+
+# 语法  
+
+## 语句和表达式  
+
+开发⼈员常常将“语句”（statement）和“表达式”（expression）混为⼀谈，  
+
+### 语句的结果值  
+
+语句都有⼀个结果值（statement completion value，undefined 也算）  
+
+代码块的结果值就如同⼀个隐式的返回 ，即返回最后⼀个语句的结果值。  
+
+### 表达式的副作⽤  
+
+最常⻅的有副作⽤（也可能没有）的表达式是函数调⽤：
+
+```javascript
+function foo() {
+a = a + 1;
+}
+var a = 1;
+foo(); // 结果值：undefined。副作⽤：a的值被改变  
+```
+
+其他⼀些表达式也有副作⽤，⽐如：
+
+```javascript
+var a = 42;
+var b = a++;
+```
+
+a++ ⾸先返回变量 a 的当前值 42 （再将该值赋给 b ），然后将 a 的值加 1：
+
+```javascript
+var a = 42;
+var b = a++;
+a; // 43
+b; // 42  
+```
+
+常有⼈误以为可以⽤括号 ( ) 将 a++ 的副作⽤封装起来，例如：
+
+```javascript
+var a = 42;
+var b = (a++);
+a; // 43
+b; // 42  
+```
+
+事实并⾮如此。( ) 本⾝并不是⼀个封装表达式，不会在表达式 a++产⽣副作⽤之后执⾏。即便可以，a++ 会⾸先返回 42 ，除⾮有表达式在 ++ 之后再次对 a 进⾏运算，否则还是不会得到 43 ，也就不能将 43 赋值给 b 。  
+
+但也不是没有办法，可以使⽤ , 语句系列逗号运算符（statementseries comma operator）将多个独⽴的表达式语句串联成⼀个语句：
+
+```javascript
+var a = 42, b;
+b = ( a++, a );
+a; // 43
+b; // 43  
+```
+
+> 由于运算符优先级的关系，a++, a 需要放到 ( .. )中。本章后⾯将会介绍。
+
+a++, a 中第⼆个表达式 a 在 a++ 之后执⾏，结果为 43 ，并被赋值给 b 。  
+
+再如 delete 运算符。第 2 章讲过，delete ⽤来删除对象中的属性和数组中的单元。它通常以单独⼀个语句的形式出现：
+
+```javascript
+var obj = {
+	a: 42
+};
+obj.a; // 42
+delete obj.a; // true
+obj.a; // undefined
+```
+
+如果操作成功，delete 返回 true ，否则返回 false 。其副作⽤是属性被从对象中删除（或者单元从 array 中删除）。  
+
+多个赋值语句串联时（链式赋值，chained assignment），赋值表达式（和语句）的结果值就能派上⽤场，⽐如：
+
+```javascript
+var a, b, c;
+a = b = c = 42;
+```
+
+这⾥ c = 42 的结果值为 42 （副作⽤是将 c 赋值 42 ），然后 b =42 的结果值为 42 （副作⽤是将 b 赋值 42 ），最后是 a = 42 （副作⽤是将 a 赋值 42 ）。  
+
+> 链式赋值常常被误⽤，例如 var a = b = 42 ，看似和前⾯的例⼦差不多，实则不然。如果变量 b 没有在作⽤域中象var b 这样声明过，则 var a = b = 42 不会对变量 b 进⾏声明。在严格模式中这样会产⽣错误，或者会⽆意中创建⼀个全局变量  
+
+### 上下⽂规则  
+
+这⾥我们不⼀⼀列举，只介绍⼀些常⻅情况。
+
+#### ⼤括号
+
+下⾯两种情况会⽤到⼤括号 { .. } （随着 JavaScript 的演进会出现更多类似的情况）。
+
+##### 对象常量
+
+⽤⼤括号定义对象常量（object literal）：
+
+```javascript
+// 假定函数bar()已经定义
+var a = {
+	foo: bar()
+};  
+```
+
+
+
+##### 标签  
+
+如果将上例中的 var a = 去掉会发⽣什么情况呢？
+
+```javascript
+// 假定函数bar()已经定义
+{
+	foo: bar()
+}  
+```
+
+
+
+#### 代码块
+
+还有⼀个坑常被提到（涉及强制类型转换，参⻅第 4 章）：
+
+```javascript
+[] + {}; // "[object Object]"
+{} + []; // 0  
+```
+
+表⾯上看 + 运算符根据第⼀个操作数（[] 或 {} ）的不同会产⽣不同的结果，实则不然。
+
+第⼀⾏代码中，{} 出现在 + 运算符表达式中，因此它被当作⼀个值（空对象）来处理。第 4 章讲过 [] 会被强制类型转换为 "" ，⽽ {}会被强制类型转换为 "[object Object]" 。
+
+但在第⼆⾏代码中，{} 被当作⼀个独⽴的空代码块（不执⾏任何操作）。代码块结尾不需要分号，所以这⾥不存在语法上的问题。最后\+ [] 将 [] 显式强制类型转换为 0 。  
+
+#### 对象解构  
+
+从 ES6 开始，{ .. } 也可⽤于“解构赋值”（destructuring assignment），特别是对象的解构。例如：  
+
+```javascript
+function getData() {
+    // ..
+    return {
+        a: 42,
+        b: "foo"
+    };
+}
+
+var { a, b } = getData();
+
+console.log( a, b ); // 42 "foo"
+```
+
+{ a , b } = .. 就是 ES6 中的解构赋值，相当于下⾯的代码：
+
+```javascript
+var res = getData();
+var a = res.a;
+var b = res.b;  
+```
+
+{ .. } 还可以⽤作函数命名参数（named function argument）的对象解构（object destructuring），⽅便隐式地⽤对象属性赋值：
+
+```javascript
+function foo({ a, b, c }) {
+    // 不再需要这样:
+    // var a = obj.a, b = obj.b, c = obj.c
+    console.log( a, b, c );
+}
+foo( {
+    c: [1,2,3],
+    a: 42,
+    b: "foo"  
+} ); // 42 "foo" [1, 2, 3]  
+```
+
+#### else if 和可选代码块  
+
+很多⼈误以为 JavaScript 中有 else if ，因为我们可以这样来写代码：
+
+```javascript
+if (a) {
+	// ..
+}
+else if (b) {
+	// ..
+}
+else {
+	// ..
+}  
+```
+
+我们经常⽤到的 else if 实际上是这样的：  
+
+```javascript
+if (a) {
+	// ..
+}
+else {
+    if (b) {
+    	// ..
+    }
+    else {
+    	// ..
+    }
+}
+```
+
+if (b) { .. } else { .. } 实际上是跟在 else 后⾯的⼀个单独的语句，所以带不带 { } 都可以。换句话说，else if 不符合前⾯介绍的编码规范，else 中是⼀个单独的 if 语句。
+
+else if 极为常⻅，能省掉⼀层代码缩进，所以很受⻘睐。但这只是我们⾃⼰发明的⽤法，切勿想当然地认为这些都属于 JavaScript 语法的范畴。  
+
+### 运算符优先级  
+
+下面的表将所有运算符按照优先级的不同从高（20）到低（1）排列。
+
+<table class="fullwidth-table">
+ <tbody>
+  <tr>
+   <th>优先级</th>
+   <th>运算类型</th>
+   <th>关联性</th>
+   <th>运算符</th>
+  </tr>
+  <tr>
+   <td>21</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Grouping"><code>圆括号</code></a></td>
+   <td>n/a（不相关）</td>
+   <td><code>( … )</code></td>
+  </tr>
+  <tr>
+   <td rowspan="5">20</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Property_Accessors#%e7%82%b9%e7%ac%a6%e5%8f%b7%e8%a1%a8%e7%a4%ba%e6%b3%95"><code>成员访问</code></a></td>
+   <td>从左到右</td>
+   <td><code>… . …</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Property_Accessors#%e6%8b%ac%e5%8f%b7%e8%a1%a8%e7%a4%ba%e6%b3%95"><code>需计算的成员访问</code></a></td>
+   <td>从左到右</td>
+   <td><code>… [ … ]</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/new"><code>new</code></a> (带参数列表)</td>
+   <td>n/a</td>
+   <td><code>new … ( … )</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Guide/Functions" title="JavaScript/Reference/Operators/Special_Operators/function_call">函数调用</a></td>
+   <td>从左到右</td>
+   <td><code>… (&nbsp;<var>…&nbsp;</var>)</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Optional_chaining">可选链（Optional chaining）</a></td>
+   <td>从左到右</td>
+   <td><code>?.</code></td>
+  </tr>
+  <tr>
+   <td rowspan="1">19</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/new" title="JavaScript/Reference/Operators/Special_Operators/new_Operator">new</a>&nbsp;(无参数列表)</td>
+   <td>从右到左</td>
+   <td><code>new …</code></td>
+  </tr>
+  <tr>
+   <td rowspan="2">18</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Arithmetic_Operators#Increment" title="JavaScript/Reference/Operators/Arithmetic_Operators">后置递增</a>(运算符在后)</td>
+   <td colspan="1" rowspan="2">n/a<br>
+    &nbsp;</td>
+   <td><code>… ++</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Arithmetic_Operators#Decrement" title="JavaScript/Reference/Operators/Arithmetic_Operators">后置递减</a>(运算符在后)</td>
+   <td><code>… --</code></td>
+  </tr>
+  <tr>
+   <td colspan="1" rowspan="10">17</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Logical_Operators#Logical_NOT">逻辑非</a></td>
+   <td colspan="1" rowspan="10">从右到左</td>
+   <td><code>! …</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators#Bitwise_NOT" title="JavaScript/Reference/Operators/Bitwise_Operators">按位非</a></td>
+   <td><code>~ …</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Arithmetic_Operators#Unary_plus" title="JavaScript/Reference/Operators/Arithmetic_Operators">一元加法</a></td>
+   <td><code>+ …</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Arithmetic_Operators#Unary_negation" title="JavaScript/Reference/Operators/Arithmetic_Operators">一元减法</a></td>
+   <td><code>- …</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Arithmetic_Operators#Increment" title="JavaScript/Reference/Operators/Arithmetic_Operators">前置递增</a></td>
+   <td><code>++ …</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Arithmetic_Operators#Decrement" title="JavaScript/Reference/Operators/Arithmetic_Operators">前置递减</a></td>
+   <td><code>-- …</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/typeof" title="JavaScript/Reference/Operators/Special_Operators/typeof_Operator">typeof</a></td>
+   <td><code>typeof …</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/void" title="JavaScript/Reference/Operators/Special_Operators/void_Operator">void</a></td>
+   <td><code>void …</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/delete" title="JavaScript/Reference/Operators/Special_Operators/delete_Operator">delete</a></td>
+   <td><code>delete …</code></td>
+  </tr>
+  <tr>
+   <td><a href="/en-US/docs/Web/JavaScript/Reference/Operators/await">await</a></td>
+   <td><code>await …</code></td>
+  </tr>
+  <tr>
+   <td>16</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Arithmetic_Operators#Exponentiation" title="JavaScript/Reference/Operators/Arithmetic_Operators">幂</a></td>
+   <td>从右到左</td>
+   <td><code>…&nbsp;**&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td rowspan="3">15</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Arithmetic_Operators#Multiplication" title="JavaScript/Reference/Operators/Arithmetic_Operators">乘法</a></td>
+   <td colspan="1" rowspan="3">从左到右<br>
+    &nbsp;</td>
+   <td><code>… *&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Arithmetic_Operators#Division" title="JavaScript/Reference/Operators/Arithmetic_Operators">除法</a></td>
+   <td><code>… /&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Arithmetic_Operators#Remainder" title="JavaScript/Reference/Operators/Arithmetic_Operators">取模</a></td>
+   <td><code>… %&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td rowspan="2">14</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Arithmetic_Operators#Addition" title="JavaScript/Reference/Operators/Arithmetic_Operators">加法</a></td>
+   <td colspan="1" rowspan="2">从左到右<br>
+    &nbsp;</td>
+   <td><code>… +&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Arithmetic_Operators#Subtraction" title="JavaScript/Reference/Operators/Arithmetic_Operators">减法</a></td>
+   <td><code>… -&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td rowspan="3">13</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators" title="JavaScript/Reference/Operators/Bitwise_Operators">按位左移</a></td>
+   <td colspan="1" rowspan="3">从左到右</td>
+   <td><code>… &lt;&lt;&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators" title="JavaScript/Reference/Operators/Bitwise_Operators">按位右移</a></td>
+   <td><code>… &gt;&gt;&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators" title="JavaScript/Reference/Operators/Bitwise_Operators">无符号右移</a></td>
+   <td><code>… &gt;&gt;&gt;&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td rowspan="6">12</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Comparison_Operators#Less_than_operator" title="JavaScript/Reference/Operators/Comparison_Operators">小于</a></td>
+   <td colspan="1" rowspan="6">从左到右</td>
+   <td><code>… &lt;&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Comparison_Operators#Less_than__or_equal_operator" title="JavaScript/Reference/Operators/Comparison_Operators">小于等于</a></td>
+   <td><code>… &lt;=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><a href="/en-US/docs/Web/JavaScript/Reference/Operators/Comparison_Operators#Greater_than_operator" title="JavaScript/Reference/Operators/Comparison_Operators">大于</a></td>
+   <td><code>… &gt;&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Comparison_Operators#Greater_than_or_equal_operator" title="JavaScript/Reference/Operators/Comparison_Operators">大于等于</a></td>
+   <td><code>… &gt;=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/in" title="JavaScript/Reference/Operators/Special_Operators/in_Operator">in</a></td>
+   <td><code>… in&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/instanceof" title="JavaScript/Reference/Operators/Special_Operators/instanceof_Operator">instanceof</a></td>
+   <td><code>… instanceof&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td rowspan="4">11</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Comparison_Operators#Equality" title="JavaScript/Reference/Operators/Comparison_Operators">等号</a></td>
+   <td colspan="1" rowspan="4">从左到右<br>
+    &nbsp;</td>
+   <td><code>… ==&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Comparison_Operators#Inequality" title="JavaScript/Reference/Operators/Comparison_Operators">非等号</a></td>
+   <td><code>… !=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Comparison_Operators#Identity" title="JavaScript/Reference/Operators/Comparison_Operators">全等号</a></td>
+   <td><code>… ===&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Comparison_Operators#Nonidentity" title="JavaScript/Reference/Operators/Comparison_Operators">非全等号</a></td>
+   <td><code>… !==&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td>10</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators#Bitwise_AND" title="JavaScript/Reference/Operators/Bitwise_Operators">按位与</a></td>
+   <td>从左到右</td>
+   <td><code>… &amp;&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td>9</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators#Bitwise_XOR" title="JavaScript/Reference/Operators/Bitwise_Operators">按位异或</a></td>
+   <td>从左到右</td>
+   <td><code>… ^&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td>8</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators#Bitwise_OR" title="JavaScript/Reference/Operators/Bitwise_Operators">按位或</a></td>
+   <td>从左到右</td>
+   <td><code>… |&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td>7</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Logical_Operators#Logical_AND" title="JavaScript/Reference/Operators/Logical_Operators">逻辑与</a></td>
+   <td>从左到右</td>
+   <td><code>… &amp;&amp;&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td>6</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Logical_Operators#Logical_OR" title="JavaScript/Reference/Operators/Logical_Operators">逻辑或</a></td>
+   <td>从左到右</td>
+   <td><code>… ||&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td>5</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing_operator" title="JavaScript/Reference/Operators/Nullish_coalescing_operator">空值合并</a></td>
+   <td>从左到右</td>
+   <td><code>… ?? …</code></td>
+  </tr>
+  <tr>
+   <td>4</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Conditional_Operator" title="JavaScript/Reference/Operators/Special_Operators/Conditional_Operator">条件运算符</a></td>
+   <td>从右到左</td>
+   <td><code>… ? … : …</code></td>
+  </tr>
+  <tr>
+   <td rowspan="16">3</td>
+   <td rowspan="16"><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Assignment_Operators" title="JavaScript/Reference/Operators/Assignment_Operators">赋值</a></td>
+   <td rowspan="16">从右到左</td>
+   <td><code>… =&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><code>… +=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><code>… -=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><code>… **=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><code>… *=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><code>… /=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><code>… %=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><code>… &lt;&lt;=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><code>… &gt;&gt;=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><code>… &gt;&gt;&gt;=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><code>… &amp;=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><code>… ^=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><code>… |=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><code>… &amp;&amp;=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><code>… ||=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><code>… ??=&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td colspan="1" rowspan="2">2</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/yield" title="JavaScript/Reference/Operators/yield">yield</a></td>
+   <td colspan="1" rowspan="2">从右到左</td>
+   <td><code>yield&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/yield*" title="JavaScript/Reference/Operators/yield">yield*</a></td>
+   <td><code>yield*&nbsp;…</code></td>
+  </tr>
+  <tr>
+   <td>1</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Spread_operator" title="JavaScript/Reference/Operators/Spread_operator">展开运算符</a></td>
+   <td>n/a</td>
+   <td><code>...</code>&nbsp;…</td>
+  </tr>
+  <tr>
+   <td>0</td>
+   <td><a href="/zh-CN/docs/Web/JavaScript/Reference/Operators/Comma_Operator" title="JavaScript/Reference/Operators/Comma_Operator">逗号</a></td>
+   <td>从左到右</td>
+   <td><code>… ,&nbsp;…</code></td>
+  </tr>
+ </tbody>
+</table>
+
+#### 短路  
+
+&& 和 || 运算符的“短路”（short circuiting）特性。下⾯我们将对此进⾏详细介绍。
+
+对 && 和 || 来说，如果从左边的操作数能够得出结果，就可以忽略右边的操作数。我们将这种现象称为“短路”（即执⾏最短路径）。
+
+以 a && b 为例，如果 a 是⼀个假值，⾜以决定 && 的结果，就没有必要再判断 b 的值。同样对于 a || b ，如果 a 是⼀个真值，也⾜以决定 || 的结果，也就没有必要再判断 b 的值。  
+
+“短路”很⽅便，也很常⽤，如：
+
+```javascript
+function doSomething(opts) {
+    if (opts && opts.cool) {
+    	// ..
+    }
+}
+```
+
+opts && opts.cool 中的 opts 条件判断如同⼀道安全保护，因为如果 opts 未赋值（或者不是⼀个对象），表达式 opts.cool 会出错。通过使⽤短路特性，opts 条件判断未通过时 opts.cool 就不会执⾏，也就不会产⽣错误！
+
+|| 运算符也⼀样：
+
+```javascript
+function doSomething(opts) {
+    if (opts.cache || primeCache()) {
+    	// ..
+    }
+} 
+```
+
+这⾥⾸先判断 opts.cache 是否存在，如果是则⽆需调⽤primeCache() 函数，这样可以避免执⾏不必要的代码。  
+
+### ⾃动分号  
+
+有时 JavaScript 会⾃动为代码⾏补上缺失的分号，即⾃动分号插⼊（Automatic Semicolon Insertion，ASI）。  
+
+### 纠错机制
+
+是否应该完全依赖 ASI 来编码，这是 JavaScript 社区中最具争议性的话题之⼀（除此之外还有 Tab 和空格之争）。  
+
+### 错误  
+
+JavaScript 不仅有各种类型的运⾏时错误（TypeError 、ReferenceError 、SyntaxError 等），它的语法中也定义了⼀些编译时错误。  
+
+#### 提前使⽤变量
+
+ES6 规范定义了⼀个新概念，叫作 TDZ（Temporal Dead Zone，暂时性死区）。
+
+TDZ 指的是由于代码中的变量还没有初始化⽽不能被引⽤的情况。对此，最直观的例⼦是 ES6 规范中的 let 块作⽤域：
+
+```javascript
+{
+    a = 2; // ReferenceError!
+    let a;
+}  
+```
+
+### 函数参数  
+
+在 ES6 中，如果参数被省略或者值为 undefined ，则取该参数的默认值：
+
+```javascript
+function foo( a = 42, b = a + 1 ) {
+	console.log( a, b );
+}
+foo(); // 42 43
+foo( undefined ); // 42 43
+foo( 5 ); // 5 6
+foo( void 0, 7 ); // 42 7
+foo( null ); // null 1  
+```
+
+### try..finally  
+
+try..catch 对我们来说可能已经⾮常熟悉了。但你是否知道 try 可以和 catch 或者 finally 配对使⽤，并且必要时两者可同时出现？finally 中的代码总是会在 try 之后执⾏，如果有 catch 的话则在catch 之后执⾏。也可以将 finally 中的代码看作⼀个回调函数，即⽆论出现什么情况最后⼀定会被调⽤。
+
+如果 try 中有 return 语句会出现什么情况呢？ return 会返回⼀个值，那么调⽤该函数并得到返回值的代码是在 finally 之前还是之后执⾏呢？
+
+```javascript
+function foo() {
+    try {
+    	return 42;
+    }
+    finally {
+    	console.log( "Hello" );
+    }
+    console.log( "never runs" );
+}
+console.log( foo() );
+// Hello
+// 42
+```
+
+这⾥ return 42 先执⾏，并将 foo() 函数的返回值设置为 42 。然后 try 执⾏完毕，接着执⾏ finally 。最后 foo() 函数执⾏完毕，console.log(..) 显⽰返回值。  
+
+try 中的 throw 也是如此：
+
+```javascript
+function foo() {
+    try {
+        throw 42;
+    }  
+
+    finally {
+        console.log( "Hello" );
+    }
+    console.log( "never runs" );
+}
+console.log( foo() );
+// Hello
+// Uncaught Exception: 42
+```
+
+如果 finally 中抛出异常（⽆论是有意还是⽆意），函数就会在此处终⽌。如果此前 try 中已经有 return 设置了返回值，则该值会被丢弃：
+
+```javascript
+function foo() {
+    try {
+        return 42;
+    }
+    finally {
+        throw "Oops!";
+    }
+    console.log( "never runs" );
+}
+console.log( foo() );
+// Uncaught Exception: Oops!
+```
+
+continue 和 break 等控制语句也是如此：
+
+```javascript
+for (var i=0; i<10; i++) {
+    try {
+        continue;
+    }
+    finally {
+        console.log( i );
+    }  
+}
+// 0 1 2 3 4 5 6 7 8 9
+```
+
+continue 在每次循环之后，会在 i++ 执⾏之前执⾏
+console.log(i) ，所以结果是 0..9 ⽽⾮ 1..10 。  
+
+### switch  
+
+现在来简单介绍⼀下 switch ，可以把它看作 if..else	if..else.. 的简化版本：
+
+```javascript
+switch (a) {
+    case 2:
+        // 执⾏⼀些代码
+        break;
+    case 42:
+        // 执⾏另外⼀些代码
+        break;
+    default:
+    	// 执⾏缺省代码
+}
+```
+
+这⾥ a 与 case 表达式逐⼀进⾏⽐较。如果匹配就执⾏该 case 中的代码，直到 break 或者 switch 代码块结束。
+
+这看似并⽆特别之处，但其中存在⼀些不太为⼈所知的陷阱。  
+
+⾸先，a 和 case 表达式的匹配算法与 === （参⻅第 4 章）相同。通常 case 语句中的 switch 都是简单值，所以这并没有问题。
+
+然⽽，有时可能会需要通过强制类型转换来进⾏相等⽐较（即 == ，参⻅第 4 章），这时就需要做⼀些特殊处理：
+
+```javascript
+var a = "42";
+switch (true) {
+    case a == 10:
+    	console.log( "10 or '10'" );  
+    	break;
+    case a == 42;
+    	console.log( "42 or '42'" );
+    	break;
+    default:
+    	// 永远执⾏不到这⾥
+}
+// 42 or '42'
+```
+
+除简单值以外，case 中还可以出现各种表达式，它会将表达式的结果值和 true 进⾏⽐较。因为 a == 42 的结果为 true ，所以条件成⽴。  
+
+尽管可以使⽤ == ，但 switch 中 true 和 true 之间仍然是严格相等⽐较。即如果 case 表达式的结果为真值，但不是严格意义上的true （参⻅第 4 章），则条件不成⽴。所以，在这⾥使⽤ || 和 &&等逻辑运算符就很容易掉进坑⾥：
+
+```javascript
+var a = "hello world";
+var b = 10;
+switch (true) {
+    case (a || b == 10):
+        // 永远执⾏不到这⾥
+        break;
+    default:
+    	console.log( "Oops" );
+}
+// Oops
+```
+
+因为 (a || b == 10) 的结果是 "hello world" ⽽⾮ true ，所以严格相等⽐较不成⽴。此时可以通过强制表达式返回 true 或false ，如 case !!(a || b == 10): （参⻅第 4 章）。  
+
+最后，default 是可选的，并⾮必不可少（虽然惯例如此）。break相关规则对 default 仍然适⽤：
+
+```javascript
+var a = 10;
+switch (a) {
+    case 1:
+    case 2:
+    	// 永远执⾏不到这⾥
+    default:
+    	console.log( "default" );
+    case 3:
+        console.log( "3" );
+        break;
+    case 4:
+    	console.log( "4" );
+}
+// default
+// 3  
+```
+
+上例中的代码是这样执⾏的，⾸先遍历并找到所有匹配的 case ，如果没有匹配则执⾏ default 中的代码。因为其中没有 break ，所以继续执⾏已经遍历过的 case 3 代码块，直到 break 为⽌。  
+
+## 原⽣原型  
+
+⼀个⼴为⼈知的 JavaScript 的最佳实践是：不要扩展原⽣原型。  
+
+当时我正在为⼀些⽹站开发⼀个嵌⼊式构件，该构件基于 jQuery（基本上所有的框架都会犯这样的错误）。基本上它在所有的⽹站上都可以运⾏，但是在某个⽹站上却彻底⽆法运⾏。  
+
+```javascript
+// Netscape 4没有Array.push
+Array.prototype.push = function(item) {
+	this[this.length-1] = item;
+};
+```
+
+除了注释以外（谁还会关⼼ Netscape 4 呢？），上述代码似乎没有问题，是吧？
+
+问题在于 Array.prototype.push 随后被加⼊到了规范中，并且和这段代码不兼容。标准的 push(..) 可以⼀次加⼊多个值。⽽这段代码中的 push ⽅法则只会处理第⼀个值。
+
+⼏乎所有 JavaScript 框架的代码都使⽤ push(..) 来处理多个值。我的问题则是 CSS 选择器引擎（CSS selector）。可想⽽知其他很多地⽅也会有这样的问题。  
+
+其次，在扩展原⽣⽅法时需要加⼊判断条件（因为你可能⽆意中覆盖了原来的⽅法）。对于前⾯的例⼦，下⾯的处理⽅式要更好⼀些：
+
+```javascript
+if (!Array.prototype.push) {
+    // Netscape 4没有Array.push
+    Array.prototype.push = function(item) {
+    	this[this.length-1] = item;
+    };
+} 
+```
+
+其中，if 语句⽤来确保当 JavaScript 运⾏环境中没有 push() ⽅法时才将扩展加⼊。这应该可以解决我的问题。但它并⾮万全之策，并且存在着⼀定的隐患。
+
+如果⽹站代码中的 push(..) 原本就不打算处理多个值的情况，那么标准的 push(..) 出台后会导致代码运⾏出错。  
+
+那么是否应该既检测原⽣⽅法是否存在，⼜要测试它能否执⾏我们想要的功能？如果测试没通过，是不是意味着代码要停⽌执⾏？
+
+```javascript
+// 不要信任 Array.prototype.push
+(function(){
+    if (Array.prototype.push) {
+        var a = [];
+        a.push(1,2);
+        if (a[0] === 1 && a[1] === 2) {
+            // 测试通过，可以放⼼使⽤！
+            return;
+    	}
+    }
+    throw Error(
+    	"Array#push() is missing/broken!"
+    );
+})();
+```
+
+理论上说这个⽅法不错，但实际上不可能为每个原⽣函数都做这样的测试。  
+
+## shim/polyfill  
+
+通常来说，在⽼版本的（不符合规范的）运⾏环境中扩展原⽣⽅法是唯⼀安全的，因为环境不太可能发⽣变化——⽀持新规范的新版本浏览器会完全替代⽼版本浏览器，⽽⾮在⽼版本上做扩展。
+
+如果能够预⻅哪些⽅法会在将来成为新的标准，如Array.prototype.foobar ，那么就可以完全放⼼地使⽤当前的扩展版本，不是吗？
+
+```javascript
+if (!Array.prototype.foobar) {
+    // 幼稚
+    Array.prototype.foobar = function() {
+    	this.push( "foo", "bar" );
+    };
+} 
+```
+
+如果规范中已经定义了 Array.prototype.foobar ，并且其功能和上⾯的代码类似，那就没有什么问题。这种情况⼀般称为 polyfill（或者 shim）。
+
+polyfill 能有效地为不符合最新规范的⽼版本浏览器填补缺失的功能，让你能够通过可靠的代码来⽀持所有你想要⽀持的运⾏环境。 
