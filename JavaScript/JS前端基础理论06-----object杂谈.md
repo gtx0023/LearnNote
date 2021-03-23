@@ -535,5 +535,119 @@ ES6 增加了一种用来遍历数组的
   // 3  
   ```
 
-  
+  ## Object.observe(..)  
+
+Web 前端开发 数据绑定——侦听数据对象的更新，同步这个数据的 DOM表示。多数 JavaScript 框架都为这类操作提供了某种机制。  
+
+你可以观察的改变有 6 种类型：  
+
+1. add
+2. update
+3. delete
+4. reconfigure
+5. setPrototype
+6. preventExtensions  
+
+默认情况下，你可以得到所有这些类型的变化的通知，也可以进行过滤只侦听关注的类型。
+考虑：
+
+```javascript
+var obj = { a: 1, b: 2 };
+Object.observe(
+    obj,
+    function(changes){
+        for (var change of changes) {
+            console.log( change );
+        }
+    },
+    [ "add", "update", "delete" ]
+);
+obj.c = 3;
+// { name: "c", object: obj, type: "add" }
+obj.a = 42;
+// { name: "a", object: obj, type: "update", oldValue: 1 }
+delete obj.b;
+// { name: "b", object: obj, type: "delete", oldValue: 2 }
+```
+
+除了主要的 "add"、 "update" 和 "delete" 变化类型：  
+
+- 如果一个对象通过 Object.defineProperty(..) 重新配置这个对象的属性，比如修改它的 writable 属性，就会发出 "reconfigure" 改变事件。
+- 如果一个对象通过 Object.preventExtensions(..) 变为不可扩展，就会发出 "prevent Extensions" 改变事件。  
+
+### 自定义改变事件  
+
+除了前面 6 类内置改变事件，你也可以侦听和发出自定义改变事件。  
+
+考虑：
+
+```javascript
+function observer(changes){
+    for (var change of changes) {
+        if (change.type == "recalc") {
+            change.object.c =
+            change.object.oldValue +
+            change.object.a +
+            change.object.b;
+        }
+    }
+}
+function changeObj(a,b) {
+    var notifier = Object.getNotifier( obj );
+    obj.a = a * 2;
+    obj.b = b * 3;
+    // 把改变事件排到一个集合中
+    notifier.notify( {
+        type: "recalc",
+        name: "c",
+        oldValue: obj.c
+    } );
+}
+var obj = { a: 1, b: 2, c: 3 };
+Object.observe(
+    obj,  
+    observer,
+    ["recalc"]
+);
+changeObj( 3, 11 );
+obj.a; // 12
+obj.b; // 30
+obj.c; // 3
+```
+
+改变集合（"recalc" 自定义事件） 已经排入队列准备发送给观测者，但是还没有发送，因此 obj.c 的值仍然是 3。  
+
+考虑：
+
+```javascript
+notifier.performChange( "recalc", function(){
+    return {
+        name: "c",
+        // this就是在观察之中的对象
+        oldValue: this.c
+    };
+} );  
+```
+
+### 结束观测  
+
+可以通过Object.unobserve(..) 来实现。
+
+举例来说：  
+
+```javascript
+var obj = { a: 1, b: 2 };
+Object.observe( obj, function observer(changes) {
+    for (var change of changes) {
+        if (change.type == "setPrototype") {
+            Object.unobserve(
+                change.object, observer
+            );  
+            break;
+        }
+    }
+} );  
+```
+
+## 
 
