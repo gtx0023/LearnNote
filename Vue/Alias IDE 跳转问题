@@ -1,0 +1,12 @@
+一：必须确认 Alias 设置正确
+
+Webpack 存在两个属性 chainWebpack configureWebpack 可以设置 别名
+检查别名配置方法
+vue inspect > output.js
+生成webpack 配置集合 可以查看 Alias
+
+当存Alias 且确认配置 成功正确之后
+
+二：添加jsconfig.json 配置项
+
+一切正确可以完成IDE跳转
