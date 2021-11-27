@@ -1,0 +1,35 @@
+.warp {
+  width: 90%;
+  margin: 0 auto;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    to left,
+    transparent,
+    black 20% 80%,
+    transparent
+  );
+  
+  //-webkit-mask-image: url("~@static/img/mask.png");
+  //-webkit-mask-size: 100% 100%; /* mask-image的大小 */
+  
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 auto;
+    &.item {
+      display: flex;
+      .prizes {
+        display: inline-block;
+        word-break: keep-all;
+        width: auto;
+        line-height: 1.5;
+        color: #fff;
+        text-align: center;
+        font-size: 12px;
+        span {
+          color: #fff;
+        }
+      }
+    }
+  }
+}
